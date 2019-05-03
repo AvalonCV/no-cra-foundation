@@ -12,24 +12,17 @@ import webpack from 'webpack';
 interface CustomWebpackConfiguration extends webpack.Configuration {
 	output: webpack.Output;
 	module: webpack.Module;
+	plugins: webpack.Plugin[];
 }
 
-export interface ConfigurationOptions {
-	platform: 'server' | 'web';
-}
-
-export default function(_env: NodeJS.ProcessEnv & ConfigurationOptions, _argv: any): CustomWebpackConfiguration[] {
-	// default to the server configuration
+export default function(_env: NodeJS.ProcessEnv, _argv: any): CustomWebpackConfiguration[] {
 	const base: CustomWebpackConfiguration = {
 		mode: 'development',
 		output: {
-			filename: 'js/server.js',
 			// path needs to be an ABSOLUTE file path
 			path: path.resolve(process.cwd(), 'dist'),
 			publicPath: '/'
 		},
-		// Enable sourcemaps for debugging webpack's output.
-		devtool: 'cheap-module-eval-source-map',
 		resolve: {
 			// Add '.ts' and '.tsx' as resolvable extensions.
 			extensions: ['.ts', '.tsx', '.js', '.json']
@@ -44,18 +37,10 @@ export default function(_env: NodeJS.ProcessEnv & ConfigurationOptions, _argv: a
 							loader: 'ts-loader'
 						}
 					]
-				},
-				// https://github.com/kangax/html-minifier/issues/727
-				{
-					test: [
-						path.resolve(__dirname, 'node_modules/uglify-js/tools/node.js'),
-						path.resolve(__dirname, 'node_modules/express/lib/view.js')
-					],
-					loader: 'null-loader'
 				}
 			]
 		},
-		plugins: [new webpack.HotModuleReplacementPlugin()]
+		plugins: []
 	};
 
 	return [
@@ -63,8 +48,13 @@ export default function(_env: NodeJS.ProcessEnv & ConfigurationOptions, _argv: a
 		{
 			...base,
 			name: 'server',
-			entry: './src/server/index.ts',
-			target: 'node'
+			entry: ['./src/server/serverRenderer.ts'],
+			target: 'node',
+			output: {
+				...base.output,
+				filename: 'js/server.js',
+				libraryTarget: 'commonjs2'
+			}
 		},
 		{
 			...base,
@@ -74,7 +64,8 @@ export default function(_env: NodeJS.ProcessEnv & ConfigurationOptions, _argv: a
 			output: {
 				...base.output,
 				filename: 'js/client.js'
-			}
+			},
+			plugins: [...base.plugins, new webpack.HotModuleReplacementPlugin()]
 		}
 	];
 }
